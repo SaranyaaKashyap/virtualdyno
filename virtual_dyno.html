@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virtual Dynamometer — ME555</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg: #05080f;
+  --card: #080d1a;
+  --card2: #0b1122;
+  --border: rgba(30,120,255,0.16);
+  --border-hi: rgba(30,120,255,0.42);
+  --accent: #1e78ff;
+  --accent-glow: rgba(30,120,255,0.22);
+  --teal: #00d4b4;
+  --teal-dim: rgba(0,212,180,0.10);
+  --text: #dde5f5;
+  --muted: #46587a;
+  --secondary: #7a90b8;
+  --mono: 'Space Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --grid: rgba(30,120,255,0.055);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 52px 52px;
+  pointer-events: none;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background: radial-gradient(ellipse 60% 50% at 20% 10%, rgba(30,90,255,0.07) 0%, transparent 70%),
+              radial-gradient(ellipse 50% 40% at 80% 80%, rgba(0,180,150,0.05) 0%, transparent 65%);
+  pointer-events: none;
+}
+.page {
+  position: relative; z-index: 1;
+  max-width: 1020px;
+  margin: 0 auto;
+  padding: 3.5rem 1.5rem 6rem;
+}
+
+/* HERO */
+.hero { margin-bottom: 3rem; animation: rise 0.7s ease both; }
+.eyebrow {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 1.1rem;
+}
+.eyebrow-line { width: 32px; height: 1px; background: var(--accent); opacity: 0.6; }
+h1 {
+  font-family: var(--mono); font-weight: 700;
+  font-size: clamp(24px, 5vw, 42px);
+  letter-spacing: -0.025em; line-height: 1.1;
+  color: #fff; margin-bottom: 0.4rem;
+}
+h1 em { font-style: normal; color: var(--accent); }
+.hero-sub {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 1.4rem;
+}
+.rule {
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-hi), transparent 75%);
+  margin-bottom: 1.4rem;
+}
+.intro {
+  font-family: var(--sans); font-size: 14px; font-weight: 300;
+  line-height: 1.85; color: var(--secondary); max-width: 700px;
+}
+.intro strong { color: var(--teal); font-weight: 500; }
+
+/* PANELS */
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  margin-bottom: 1rem;
+  position: relative; overflow: hidden;
+  animation: rise 0.6s ease both;
+}
+.panel::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--teal) 40%, transparent 80%);
+  opacity: 0.55;
+}
+.ph {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0.8rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.ph-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+}
+.ph-label {
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--muted);
+}
+.pb { padding: 1.4rem 1.5rem; }
+
+/* FIELDS */
+.grid9 { display: grid; grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); gap: 10px; }
+.field label {
+  display: block;
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 5px;
+}
+.field input {
+  width: 100%; padding: 8px 11px;
+  background: rgba(30,120,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  font-family: var(--mono); font-size: 13px;
+  color: var(--text); outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field input:hover { border-color: rgba(30,120,255,0.32); }
+.field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+/* TREF TABLE */
+.tref-head {
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted); margin: 1.2rem 0 8px;
+}
+.tref { width: 100%; border-collapse: collapse; }
+.tref th {
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted); text-align: left;
+  padding: 6px 10px; border-bottom: 1px solid var(--border);
+}
+.tref td {
+  font-family: var(--mono); font-size: 12px;
+  color: var(--secondary); padding: 7px 10px;
+  border-bottom: 1px solid rgba(30,120,255,0.05);
+}
+.tref tr:last-child td { border-bottom: none; }
+.tref td:nth-child(2) { color: var(--teal); }
+
+/* RUN */
+.run-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.btn-run {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  padding: 11px 28px;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: 2px; cursor: pointer;
+  transition: background 0.15s, box-shadow 0.2s, transform 0.1s;
+  display: flex; align-items: center; gap: 8px;
+}
+.btn-run:hover { background: #3a8aff; box-shadow: 0 0 28px var(--accent-glow); }
+.btn-run:active { transform: scale(0.97); }
+.btn-run:disabled { background: #121c30; color: var(--muted); cursor: not-allowed; box-shadow: none; }
+.btn-run svg { width: 10px; height: 10px; fill: #fff; }
+.prog-wrap { flex: 1; min-width: 200px; display: none; }
+.prog-track {
+  height: 2px; background: rgba(30,120,255,0.1);
+  border-radius: 1px; overflow: hidden; margin-bottom: 5px;
+}
+.prog-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--teal));
+  width: 0%; transition: width 0.05s;
+  box-shadow: 0 0 10px var(--accent);
+}
+.prog-txt {
+  font-family: var(--mono); font-size: 9px;
+  letter-spacing: 0.1em; color: var(--muted);
+}
+
+/* STAT CARDS */
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.scard {
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 3px; padding: 1.1rem 1.25rem;
+  position: relative; overflow: hidden;
+  animation: rise 0.45s ease both;
+}
+.scard::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, var(--teal), transparent 65%);
+  opacity: 0.7;
+}
+.scard-lbl {
+  font-family: var(--mono); font-size: 8.5px;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 8px;
+}
+.scard-val {
+  font-family: var(--mono); font-size: 28px; font-weight: 700;
+  color: #fff; line-height: 1;
+}
+.scard-unit {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--teal); margin-left: 5px;
+}
+
+/* CHARTS */
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 580px) { .charts { grid-template-columns: 1fr; } }
+.ccard {
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 3px; padding: 1.25rem;
+  position: relative; overflow: hidden;
+  animation: rise 0.5s ease both;
+}
+.ccard::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, var(--accent), transparent 65%);
+  opacity: 0.5;
+}
+.ctitle {
+  font-family: var(--mono); font-size: 8.5px;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 12px;
+}
+.cwrap { position: relative; height: 195px; }
+
+.hidden { display: none !important; }
+@keyframes rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hero">
+    <div class="eyebrow"><span class="eyebrow-line"></span>Duke University &nbsp;·&nbsp; ME555 Automotive Engineering</div>
+    <h1>Virtual <em>Dynamo</em>meter</h1>
+    <div class="hero-sub">Koford 129H43A &nbsp;·&nbsp; 48 V Surface-Mount PMSM &nbsp;·&nbsp; FOC &nbsp;·&nbsp; Saranyaa &amp; Emi</div>
+    <div class="rule"></div>
+    <p class="intro">
+      This tool simulates a field-oriented-controlled permanent-magnet synchronous motor driving a lightweight vehicle (≈150 kg) through a step-wise torque profile. Enter your motor and simulation parameters below, press <strong>Run Simulation</strong>, and watch speed, torque, q-axis current, and efficiency evolve over time. All dynamics are solved with a <strong>Forward Euler integrator at dt = 10 µs</strong> to resolve fast electrical dynamics. Adjust any parameter below, set your time window, and hit <strong>RUN SIMULATION</strong> to generate all four diagnostic charts plus summary statistics.
+    </p>
+  </div>
+
+  <div class="panel" style="animation-delay:.07s">
+    <div class="ph"><div class="ph-dot"></div><div class="ph-label">Motor parameters</div></div>
+    <div class="pb">
+      <div class="grid9">
+        <div class="field"><label>Rs — stator resistance (Ω)</label><input id="Rs" type="number" step="any" value="0.124"></div>
+        <div class="field"><label>Ld — d-axis inductance (H)</label><input id="Ld" type="number" step="any" value="0.0012"></div>
+        <div class="field"><label>Lq — q-axis inductance (H)</label><input id="Lq" type="number" step="any" value="0.0012"></div>
+        <div class="field"><label>ψm — PM flux linkage (Wb)</label><input id="psim" type="number" step="any" value="0.06256"></div>
+        <div class="field"><label>p — pole pairs</label><input id="p" type="number" step="1" value="5"></div>
+        <div class="field"><label>J — rotor inertia (kg·m²)</label><input id="J" type="number" step="any" value="0.000475"></div>
+        <div class="field"><label>B — viscous damping (N·m·s/rad)</label><input id="B" type="number" step="any" value="0.001"></div>
+        <div class="field"><label>Vdc — DC link voltage (V)</label><input id="Vdc" type="number" step="any" value="48"></div>
+        <div class="field"><label>TL — road-load torque (N·m)</label><input id="TL" type="number" step="any" value="6.6"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="animation-delay:.13s">
+    <div class="ph"><div class="ph-dot"></div><div class="ph-label">Controller &amp; simulation</div></div>
+    <div class="pb">
+      <div class="grid9">
+        <div class="field"><label>Kp — proportional gain</label><input id="Kp" type="number" step="any" value="2"></div>
+        <div class="field"><label>Ki — integral gain</label><input id="Ki" type="number" step="any" value="200"></div>
+        <div class="field"><label>Sim time (1–10 s)</label><input id="tsim" type="number" min="1" max="10" step="0.5" value="1"></div>
+      </div>
+      <div class="tref-head">Torque reference profile — fixed</div>
+      <table class="tref">
+        <tr><th>Time range</th><th>Tref (N·m)</th><th>Description</th></tr>
+        <tr><td>0 → 0.11 s</td><td>0</td><td>Coast / free-spin</td></tr>
+        <tr><td>0.11 → 0.23 s</td><td>3.3</td><td>50 % rated load</td></tr>
+        <tr><td>0.23 → 0.318 s</td><td>6.6</td><td>100 % rated load</td></tr>
+        <tr><td>&gt; 0.318 s</td><td>7.6</td><td>115 % transient peak</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel" style="animation-delay:.19s">
+    <div class="pb" style="padding:1rem 1.5rem">
+      <div class="run-row">
+        <button class="btn-run" id="runBtn" onclick="runSim()">
+          <svg viewBox="0 0 10 10"><polygon points="2,1 9,5 2,9"/></svg>
+          Run simulation
+        </button>
+        <div class="prog-wrap" id="pbWrap">
+          <div class="prog-track"><div class="prog-fill" id="pb"></div></div>
+          <div class="prog-txt" id="statusTxt">Initializing…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="resultsSection" class="hidden">
+    <div class="stats" id="statsGrid"></div>
+    <div class="charts">
+      <div class="ccard">
+        <div class="ctitle">Speed — RPM vs time</div>
+        <div class="cwrap"><canvas id="cSpeed" role="img" aria-label="Motor speed vs time in RPM">Speed chart</canvas></div>
+      </div>
+      <div class="ccard">
+        <div class="ctitle">Torque — N·m vs time</div>
+        <div class="cwrap"><canvas id="cTorque" role="img" aria-label="Torque vs time in N·m">Torque chart</canvas></div>
+      </div>
+      <div class="ccard">
+        <div class="ctitle">Q-axis current — Iq (A)</div>
+        <div class="cwrap"><canvas id="cIq" role="img" aria-label="Q-axis current vs time">Iq chart</canvas></div>
+      </div>
+      <div class="ccard">
+        <div class="ctitle">Efficiency — %</div>
+        <div class="cwrap"><canvas id="cEta" role="img" aria-label="Efficiency vs time">Efficiency chart</canvas></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+let charts = {};
+const GC = '#rgba(30,120,255,0.08)';
+const GR = 'rgba(30,120,255,0.07)';
+const TC = '#2d3f60';
+const LC = '#46587a';
+const MF = { family: "'Space Mono', monospace", size: 9 };
+
+function destroyCharts() {
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch(e){} });
+  charts = {};
+}
+function gv(id) { return parseFloat(document.getElementById(id).value); }
+function getTref(t) {
+  if (t < 0.11) return 0;
+  if (t < 0.23) return 3.3;
+  if (t < 0.318) return 6.6;
+  return 7.6;
+}
+
+function mkChart(id, label, color, tArr, yArr, extras, yLabel) {
+  const ctx = document.getElementById(id).getContext('2d');
+  const ds = [{ label, data: yArr, borderColor: color, borderWidth: 1.5, pointRadius: 0, tension: 0.1 }];
+  if (extras) extras.forEach(d => ds.push(d));
+  charts[id] = new Chart(ctx, {
+    type: 'line',
+    data: { labels: tArr, datasets: ds },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: {
+          display: !!(extras && extras.length),
+          labels: { color: LC, boxWidth: 9, font: MF, padding: 10 }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { maxTicksLimit: 7, color: TC, font: MF, callback: (v, i) => tArr[i] !== undefined ? tArr[i].toFixed(2) : '' },
+          title: { display: true, text: 'Time (s)', color: LC, font: MF },
+          grid: { color: GR }, border: { color: GR }
+        },
+        y: {
+          title: { display: true, text: yLabel, color: LC, font: MF },
+          ticks: { color: TC, font: MF },
+          grid: { color: GR }, border: { color: GR }
+        }
+      }
+    }
+  });
+}
+
+function setStats(peak_Te, final_rpm, peak_eta, ss_iq) {
+  const items = [
+    { l: 'Peak torque', v: peak_Te.toFixed(2), u: 'N·m' },
+    { l: 'Final speed', v: Math.round(final_rpm), u: 'RPM' },
+    { l: 'Peak efficiency (t>0.3s)', v: peak_eta.toFixed(1), u: '%' },
+    { l: 'Steady-state Iq', v: ss_iq.toFixed(1), u: 'A' }
+  ];
+  document.getElementById('statsGrid').innerHTML = items.map(i =>
+    `<div class="scard"><div class="scard-lbl">${i.l}</div><div class="scard-val">${i.v}<span class="scard-unit">${i.u}</span></div></div>`
+  ).join('');
+}
+
+function runSim() {
+  const btn = document.getElementById('runBtn');
+  const pbWrap = document.getElementById('pbWrap');
+  const pb = document.getElementById('pb');
+  const statusTxt = document.getElementById('statusTxt');
+
+  btn.disabled = true;
+  pbWrap.style.display = 'block';
+  statusTxt.textContent = 'Initializing…';
+  pb.style.width = '0%';
+
+  const Rs=gv('Rs'), Ld=gv('Ld'), Lq=gv('Lq'), psim=gv('psim'),
+        p=gv('p'), J=gv('J'), B=gv('B'), Vdc=gv('Vdc'), TL=gv('TL'),
+        Kp=gv('Kp'), Ki=gv('Ki');
+  const tsim = Math.min(10, Math.max(1, gv('tsim')));
+  const dt = 1e-5;
+  const n = Math.floor(tsim / dt) + 1;
+  const SKIP = Math.max(1, Math.floor(n / 2500));
+
+  let id_s=0, iq_s=0, wr_s=0, int_id=0, int_iq=0, Te_s=0;
+  const tArr=[], rpmArr=[], TeArr=[], iqArr=[], etaArr=[];
+  let k = 0;
+  const CHUNK = 50000;
+
+  function processChunk() {
+    const end = Math.min(k + CHUNK, n - 1);
+    for (; k < end; k++) {
+      const t_cur = k * dt;
+      const Tref = getTref(t_cur);
+      const iq_ref = Tref / (1.5 * p * psim);
+      const err_id = -id_s, err_iq = iq_ref - iq_s;
+      int_id += err_id * dt; int_iq += err_iq * dt;
+      let Vd = Kp*err_id + Ki*int_id - wr_s*Lq*iq_s;
+      let Vq = Kp*err_iq + Ki*int_iq + wr_s*(Ld*id_s + psim);
+      const Vmax = Vdc / Math.sqrt(3);
+      const Vmag = Math.sqrt(Vd*Vd + Vq*Vq);
+      if (Vmag > Vmax) { const sc = Vmax/Vmag; Vd*=sc; Vq*=sc; }
+      id_s += (Vd - Rs*id_s + wr_s*Lq*iq_s) / Ld * dt;
+      iq_s += (Vq - Rs*iq_s - wr_s*(Ld*id_s + psim)) / Lq * dt;
+      Te_s = 1.5*p*(psim*iq_s + (Ld-Lq)*id_s*iq_s);
+      wr_s = Math.max(0, wr_s + (Te_s - TL - B*wr_s)/J * dt);
+      if (k % SKIP === 0) {
+        const Pout = Te_s * wr_s;
+        const copper = 1.5 * Rs * (id_s*id_s + iq_s*iq_s);
+        let eta = 100 * Pout / Math.max(copper + Pout, 0.001);
+        eta = Math.min(100, Math.max(0, eta));
+        tArr.push(t_cur); rpmArr.push(wr_s*60/(2*Math.PI));
+        TeArr.push(Te_s); iqArr.push(iq_s); etaArr.push(eta);
+      }
+    }
+    const pct = Math.round((k/(n-1))*100);
+    pb.style.width = pct + '%';
+    statusTxt.textContent = `Computing… ${pct}%`;
+    if (k < n-1) { setTimeout(processChunk, 0); } else { finalize(); }
+  }
+
+  function finalize() {
+    statusTxt.textContent = 'Rendering…';
+    destroyCharts();
+    document.getElementById('resultsSection').classList.remove('hidden');
+    const peak_Te = Math.max(...TeArr);
+    const final_rpm = rpmArr[rpmArr.length-1];
+    const after03 = etaArr.filter((_,i) => tArr[i] > 0.3);
+    const peak_eta = after03.length ? Math.max(...after03) : Math.max(...etaArr);
+    const afterHalf = iqArr.filter((_,i) => tArr[i] > tsim*0.5);
+    const ss_iq = afterHalf.length ? afterHalf.reduce((a,b)=>a+b,0)/afterHalf.length : iqArr[iqArr.length-1];
+    setStats(peak_Te, final_rpm, peak_eta, ss_iq);
+    mkChart('cSpeed','Speed (RPM)','#1e78ff', tArr, rpmArr, [
+      { label:'Target 1600 RPM', data: tArr.map(()=>1600), borderColor:'#00d4b4', borderWidth:1, borderDash:[5,4], pointRadius:0 }
+    ],'RPM');
+    mkChart('cTorque','Torque (N·m)','#4a9aff', tArr, TeArr, [
+      { label:'Road load 6.6', data: tArr.map(()=>6.6), borderColor:'#00d4b4', borderWidth:1, borderDash:[5,4], pointRadius:0 },
+      { label:'Peak rated 8.81', data: tArr.map(()=>8.81), borderColor:'#ff5050', borderWidth:1, borderDash:[2,5], pointRadius:0 }
+    ],'N·m');
+    mkChart('cIq','Iq (A)','#7ab8ff', tArr, iqArr, null,'A');
+    mkChart('cEta','Efficiency (%)','#00d4b4', tArr, etaArr, null,'%');
+    pb.style.width = '100%';
+    statusTxt.textContent = 'Complete.';
+    btn.disabled = false;
+    setTimeout(()=>{ pbWrap.style.display='none'; }, 1600);
+  }
+
+  setTimeout(processChunk, 20);
+}
+</script>
+</body>
+</html>
